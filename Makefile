@@ -146,20 +146,51 @@ libdef1_objref_libc$(EXE): $(OBJS)
 # This is what betrays people's understanding.
 # The def is not the first on the command line, but the first following the ref.
 # We'll build more samples.
+
+# This will get the new from the msvcrt.lib.
 libdef1_libref_libc$(EXE): $(OBJS)
 	$(CC) $(CFLAGS) $(Wall) $(Qspectre) main.c $(CLINK_FLAGS) libdef1.lib ref.lib $(LIBC)
 
+# If you add /wholearchive, however, you will get the new from the lib.
+libdef1_libref_libc_wholearchive$(EXE): $(OBJS) ref.lib
+	$(CC) $(CFLAGS) $(Wall) $(Qspectre) main.c $(CLINK_FLAGS) libdef1.lib ref.lib $(LIBC) /wholearchive:libdef1.lib
+
 # Here we have our own two custom operator new. Which will be used, 1 or 2?
+
+# The question is meant to show the misconseption that the new will be taken from the first one on the command line.
+# However, the new will be taken from the first lib after the ref.
+# Here, 2 will be used.
 libdef1_libref_libdef2_libc$(EXE): $(OBJS)
 	$(CC) $(CFLAGS) $(Wall) $(Qspectre) main.c $(CLINK_FLAGS) libdef1.lib ref.lib libdef2.lib $(LIBC)
 
 # And the other way around.
+
+# Here, 1 will be used.
 libdef2_libref_libdef1_libc$(EXE): $(OBJS)
 	$(CC) $(CFLAGS) $(Wall) $(Qspectre) main.c $(CLINK_FLAGS) libdef2.lib ref.lib libdef1.lib $(LIBC)
+
+# However, when you specify /wholearchive, you will get the symbol from the specified library.
+# Here, 1 will be used, even though it's before the ref.
+libdef1_libref_libdef2_libc_wholearchive$(EXE): $(OBJS)
+	$(CC) $(CFLAGS) $(Wall) $(Qspectre) main.c $(CLINK_FLAGS) libdef1.lib ref.lib libdef2.lib $(LIBC) /wholearchive:libdef1.lib
+
+# However, when you specify /wholearchive, you will get the symbol from the specified library.
+# Here, 2 will be used, even though it's before the ref.
+libdef2_libref_libdef1_libc_wholearchive$(EXE): $(OBJS)
+	$(CC) $(CFLAGS) $(Wall) $(Qspectre) main.c $(CLINK_FLAGS) libdef2.lib ref.lib libdef1.lib $(LIBC) /wholearchive:libdef2.lib
+
+# If you specify both, you will get a linker error because the symbols are now ambiguous.
+libdef2_libref_libdef1_libc_wholearchive_both$(EXE): $(OBJS)
+	$(CC) $(CFLAGS) $(Wall) $(Qspectre) main.c $(CLINK_FLAGS) libdef2.lib ref.lib libdef1.lib $(LIBC) /wholearchive:libdef1.lib /wholearchive:libdef2.lib
 
 # And show that objs always win.
 libdef2_libref_libdef1_libc_objdef1$(EXE): $(OBJS)
 	$(CC) $(CFLAGS) $(Wall) $(Qspectre) main.c $(CLINK_FLAGS) libdef2.lib ref.lib libdef1.lib $(LIBC) objdef1.obj
+
+# And show that objs always win.
+# It does look like object always wins. In this case, we get the same duplicate symbol error.
+libdef2_libref_libdef1_libc_objdef1_wholearchive$(EXE): $(OBJS)
+	$(CC) $(CFLAGS) $(Wall) $(Qspectre) main.c $(CLINK_FLAGS) libdef2.lib ref.lib libdef1.lib $(LIBC) objdef1.obj /wholearchive:libdef1.lib
 
 # Def is in LIBC as expected.
 # But this betrays the reading of the standard also.
@@ -168,6 +199,11 @@ libdef2_libref_libdef1_libc_objdef1$(EXE): $(OBJS)
 objref_libc_libdef$(EXE): $(OBJS)
 	$(CC) $(CFLAGS) $(Wall) $(Qspectre) main.c $(CLINK_FLAGS) ref.obj $(LIBC) libdef1.lib
 
+# This result is surprising to me. With my understanding how linker works, I would expect that new from msvcrt is used.
+# However, it's actually from the lib.
+objref_libc_libdef_wholearchive$(EXE): $(OBJS)
+	$(CC) $(CFLAGS) $(Wall) $(Qspectre) main.c $(CLINK_FLAGS) ref.obj $(LIBC) libdef1.lib /wholearchive:libdef1.lib
+
 # For sanity, check that msvcrt.lib is it, works, when we have no definition.
 objref_libc$(EXE): $(OBJS)
 	$(CC) $(CFLAGS) $(Wall) $(Qspectre) main.c $(CLINK_FLAGS) ref.obj $(LIBC)
@@ -175,7 +211,10 @@ objref_libc$(EXE): $(OBJS)
 # And now for the final exercise(s), given everything works about
 # as predicted (I missed the ref in obj vs. lib aspect), try the associativity method.
 # I have not gotten this to work.
-linkage1$(EXE): $(OBJS)
+#
+# I still have to work through this example.
+#
+linkage1$(EXE): $(OBJS) ref_and_linkage.lib
 	$(CC) $(CFLAGS) $(Wall) $(Qspectre) main.c $(CLINK_FLAGS) ref_and_linkage.lib $(LIBC) libdef1.lib libdef_linkage.lib
 
 ref_and_linkage.obj: ref_and_linkage.cpp
